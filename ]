@@ -1,0 +1,56 @@
+package model
+
+import (
+	"backend/cake/config"
+	"backend/cake/entity"
+	"errors"
+	"time"
+	"reflect"
+	"github.com/go-chi/jwtauth/v5"
+)
+
+var tokenAuth *jwtauth.JWTAuth
+
+func init(){
+	tokenAuth = jwtauth.New("HS256",[]byte("sokerez"),nil)
+}
+
+func checkExpiration(time string){
+	time.Parse(time)	
+
+}
+
+func Encode(user *entity.User)(string,error) {
+	expirationTime := time.Now().AddDate(0,0,1)//expiration in 24 hours
+	_,token,err := tokenAuth.Encode(map[string]interface{}{"userId":user.ID,"expiration":expirationTime,"role":user.Role})
+	if err != nil{
+		return  "",err
+	}
+	return  token,nil
+}
+
+func Decode(incomingToken string, role int8) (bool,error) {
+	token,err := tokenAuth.Decode(incomingToken)		
+	if err != nil{
+		return false, err
+	}
+	expiration,valueExists := token.Get("expiration")
+	if valueExists == false{
+		config.Sugar.Debug("bad jwt structure")
+		return false,errors.New("token was not issued by this server")
+	}
+
+	incomingRole,valueExists:= token.Get("role")
+	if valueExists == false{
+		config.Sugar.Debug("bad jwt structure")
+		return false,errors.New("token was not issued by this server")
+	}
+	if int8(incomingRole.(float64)) >= role && checkExpiration(expiration){
+				
+	}
+	config.Sugar.Debug(reflect.TypeOf(incomingRole))
+	config.Sugar.Debug(reflect.TypeOf(expiration))
+
+	return true,nil
+}
+
